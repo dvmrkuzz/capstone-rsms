@@ -9,10 +9,11 @@ import { Inquiry } from './database/entities/inquiry.entity';
 import { Announcement } from './database/entities/announcement.entity';
 import { FAQ } from './database/entities/faq.entity';
 config();
+import { Booking } from './database/entities/booking.entity';
 
 const entities = [
   User, DocumentType, ServiceRequest,
-  VisitorLog, AuditLog, Inquiry, Announcement, FAQ,
+  VisitorLog, AuditLog, Inquiry, Announcement, FAQ, Booking,
 ];
 
 const migrations = ['src/database/migrations/*{.ts,.js}'];

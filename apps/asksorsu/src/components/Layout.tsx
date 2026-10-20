@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { Home, Megaphone, Search, Menu, X, LogOut, UserCircle, FileText } from 'lucide-react'
+import { Home, Megaphone, Search, Menu, X, LogOut, UserCircle, FileText} from 'lucide-react'
 import logo from '../assets/logo.png'
 import ChatWidget from './ChatWidget'
 import { useAuthStore } from '../store/auth.store'

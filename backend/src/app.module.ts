@@ -23,6 +23,7 @@ import { FAQ } from './database/entities/faq.entity';
 import { FaqModule } from './modules/faq/faq.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { AssistantModule } from './modules/assistant/assistant.module';
+import { Booking } from './database/entities/booking.entity';
 
 @Module({
   imports: [
@@ -42,7 +43,7 @@ import { AssistantModule } from './modules/assistant/assistant.module';
           type: 'postgres' as const,
           entities: [
             User, DocumentType, ServiceRequest,
-            VisitorLog, AuditLog, Inquiry, Announcement, FAQ,
+            VisitorLog, AuditLog, Inquiry, Announcement, FAQ, Booking,
           ],
           migrations: [__dirname + '/database/migrations/*{.ts,.js}'],
           synchronize: false,
