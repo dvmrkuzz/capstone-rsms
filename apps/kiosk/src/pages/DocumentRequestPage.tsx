@@ -43,6 +43,7 @@ export default function DocumentRequestPage() {
   const lastName = searchParams.get('lastName') ?? ''
   const contactNumber = searchParams.get('contactNumber') ?? ''
   const idNumber = searchParams.get('idNumber') ?? ''
+  const visitorType = searchParams.get('visitorType') ?? 'non_student'
   const fullName = `${firstName} ${lastName}`.trim()
 
   const [step, setStep] = useState<Step>('doc-type')
@@ -85,8 +86,10 @@ export default function DocumentRequestPage() {
         studentId: idNumber || undefined,
         contactNumber: contactNumber || undefined,
         purpose: 'document_request',
+        visitorType,
         documentTypeId: selectedDoc.id,
-        notes: `Copies: ${requestDetails.copies} | Purpose: ${requestDetails.purpose}`,
+        copies: requestDetails.copies,
+        requestPurpose: requestDetails.purpose.trim(),
       })
       setSuccessData(res.data)
       setStep('success')

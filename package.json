@@ -12,5 +12,9 @@
     "dashboard": "npm run dev -w dashboard",
     "kiosk": "npm run dev -w kiosk",
     "asksorsu": "npm run dev -w asksorsu"
+  },
+  "allowScripts": {
+    "bcrypt@6.0.0": true,
+    "sharp@0.32.6": true
   }
 }

@@ -1,9 +1,14 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
-import { VisitorLog, VisitorType } from '../../database/entities/visitor-log.entity';
+import {
+  VisitorLog,
+  VisitorType,
+  VisitorPurpose,
+} from '../../database/entities/visitor-log.entity';
 import { ServiceRequest, RequestStatus } from '../../database/entities/service-request.entity';
 import { DocumentType } from '../../database/entities/document-type.entity';
+import { KioskCheckinDto } from './dto';
 
 @Injectable()
 export class VisitorsService {
@@ -39,20 +44,17 @@ export class VisitorsService {
     return `RSMS-${year}${month}${day}-${random}`;
   }
 
-    async kioskCheckin(dto: {
-    visitorName: string;
-    email?: string;
-    contactNumber?: string;
-    studentId?: string;
-    purpose: string;
-    visitorType?: string;
-    documentTypeId?: string;
-    notes?: string;
-  }): Promise<any> {
+  async kioskCheckin(dto: KioskCheckinDto): Promise<any> {
     const queueNumber = await this.generateQueueNumber();
-    let trackingNumber: string | undefined = undefined;
 
-    if (dto.purpose === 'document_request' && dto.documentTypeId) {
+    // Document requests generate a new tracking number; pick-ups carry the
+    // tracking number the visitor presents at the kiosk.
+    let trackingNumber: string | undefined =
+      dto.purpose === VisitorPurpose.PICK_UP
+        ? dto.trackingNumber?.trim().toUpperCase() || undefined
+        : undefined;
+
+    if (dto.purpose === VisitorPurpose.DOCUMENT_REQUEST && dto.documentTypeId) {
       const docType = await this.documentTypeRepository.findOne({
         where: { id: dto.documentTypeId, isActive: true },
       });
@@ -60,11 +62,14 @@ export class VisitorsService {
       if (docType) {
         trackingNumber = this.generateTrackingNumber();
 
-                 const serviceRequest = this.requestRepository.create({
+        const serviceRequest = this.requestRepository.create({
           documentTypeId: dto.documentTypeId,
           status: RequestStatus.PENDING,
-          copies: 1,
-          purpose: 'Walk-in kiosk request',
+          // Persist the quantity and reason the visitor actually entered at the
+          // kiosk instead of defaulting them; previously both were discarded and
+          // survived only as free text inside `remarks`.
+          copies: dto.copies ?? 1,
+          purpose: dto.requestPurpose?.trim() || 'Walk-in kiosk request',
           trackingNumber,
           remarks: dto.notes,
           requesterEmail: dto.email ?? null,
@@ -74,18 +79,14 @@ export class VisitorsService {
       }
     }
 
-    const validVisitorTypes = Object.values(VisitorType) as string[];
-    const visitorType =
-      dto.visitorType && validVisitorTypes.includes(dto.visitorType)
-        ? (dto.visitorType as VisitorType)
-        : VisitorType.NON_STUDENT;
+    const visitorType = dto.visitorType ?? VisitorType.NON_STUDENT;
 
     const visitor = this.visitorRepository.create({
       queueNumber,
       visitorName: dto.visitorName,
       contactNumber: dto.contactNumber,
       studentId: dto.studentId,
-      purpose: dto.purpose as any,
+      purpose: dto.purpose,
       visitorType,
       documentTypeId: dto.documentTypeId,
       trackingNumber,

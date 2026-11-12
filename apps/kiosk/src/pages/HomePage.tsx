@@ -2,11 +2,20 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FileText, Package, ArrowRight, } from 'lucide-react'
 import logo from '../assets/logo.png'
+type VisitorType = 'student' | 'alumni' | 'non_student'
+
+const VISITOR_TYPES: { value: VisitorType; label: string; hint: string }[] = [
+  { value: 'student', label: 'Student', hint: 'Currently enrolled' },
+  { value: 'alumni', label: 'Alumni', hint: 'Already graduated' },
+  { value: 'non_student', label: 'Non-Student', hint: 'Faculty, parent, visitor' },
+]
+
 interface PersonalDetails {
   firstName: string
   lastName: string
   contactNumber: string
   idNumber: string
+  visitorType: VisitorType | ''
 }
 
 export default function HomePage() {
@@ -14,7 +23,7 @@ export default function HomePage() {
   const [now, setNow] = useState(new Date())
   const [step, setStep] = useState<'details' | 'purpose'>('details')
   const [details, setDetails] = useState<PersonalDetails>({
-    firstName: '', lastName: '', contactNumber: '', idNumber: '',
+    firstName: '', lastName: '', contactNumber: '', idNumber: '', visitorType: '',
   })
   const [error, setError] = useState('')
 
@@ -41,6 +50,10 @@ export default function HomePage() {
       setError('Please enter a valid mobile number (11 digits, starts with 09). Example: 09171234567')
       return
     }
+    if (!details.visitorType) {
+      setError('Please select whether you are a student, alumni, or non-student.')
+      return
+    }
     setError('')
     setStep('purpose')
   }
@@ -51,6 +64,7 @@ export default function HomePage() {
       lastName: details.lastName,
       contactNumber: details.contactNumber,
       idNumber: details.idNumber,
+      visitorType: details.visitorType,
     })
     navigate(`/${purpose}?${params.toString()}`)
   }
@@ -148,6 +162,37 @@ export default function HomePage() {
                     className="w-full px-4 py-3.5 border-2 border-gray-200 rounded-xl text-base focus:outline-none focus:border-red-800 transition"
                     placeholder="Student ID"
                   />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold mb-2" style={{ color: '#7B1113' }}>
+                  I am a *
+                </label>
+                <div className="grid grid-cols-3 gap-3">
+                  {VISITOR_TYPES.map(t => {
+                    const selected = details.visitorType === t.value
+                    return (
+                      <button
+                        key={t.value}
+                        type="button"
+                        onClick={() => setDetails({ ...details, visitorType: t.value })}
+                        className="px-3 py-3 rounded-xl border-2 text-center transition active:scale-95"
+                        style={{
+                          borderColor: selected ? '#7B1113' : '#E5E7EB',
+                          background: selected ? '#F5EDED' : '#FFFFFF',
+                        }}
+                      >
+                        <span
+                          className="block font-bold text-base"
+                          style={{ color: selected ? '#7B1113' : '#374151' }}
+                        >
+                          {t.label}
+                        </span>
+                        <span className="block text-xs text-gray-500 mt-0.5">{t.hint}</span>
+                      </button>
+                    )
+                  })}
                 </div>
               </div>
 

@@ -4,6 +4,7 @@ import {
   ParseIntPipe, DefaultValuePipe, Request,
 } from '@nestjs/common';
 import { VisitorsService } from './visitors.service';
+import { KioskCheckinDto } from './dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -19,7 +20,7 @@ export class VisitorsController {
   }
 
   @Post('checkin')
-  kioskCheckin(@Body() dto: any) {
+  kioskCheckin(@Body() dto: KioskCheckinDto) {
     return this.visitorsService.kioskCheckin(dto);
   }
 
@@ -54,11 +55,6 @@ export class VisitorsController {
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.visitorsService.findOne(id);
   }
-
-  @Get('document-types')
-getDocumentTypes() {
-  return this.visitorsService.getDocumentTypes();
-}
 
   @Patch(':id/serve')
   @UseGuards(JwtAuthGuard, RolesGuard)

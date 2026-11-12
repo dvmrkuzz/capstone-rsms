@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Loader2, Printer } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import api from '../lib/api'
 import KioskStepHeader from '../components/KioskStepHeader'
 
@@ -18,6 +18,7 @@ export default function PickUpPage() {
   const lastName = searchParams.get('lastName') ?? ''
   const contactNumber = searchParams.get('contactNumber') ?? ''
   const idNumber = searchParams.get('idNumber') ?? ''
+  const visitorType = searchParams.get('visitorType') ?? 'non_student'
   const fullName = `${firstName} ${lastName}`.trim()
 
   const [submitting, setSubmitting] = useState(false)
@@ -35,7 +36,8 @@ export default function PickUpPage() {
         studentId: idNumber || undefined,
         contactNumber: contactNumber || undefined,
         purpose: 'pick_up',
-        notes: trackingCode ? `Tracking: ${trackingCode}` : undefined,
+        visitorType,
+        trackingNumber: trackingCode.trim() || undefined,
       })
       setSuccessData(res.data)
       setTimeout(() => navigate('/'), 15000)
@@ -46,49 +48,16 @@ export default function PickUpPage() {
     }
   }
 
-  const handlePrint = () => window.print()
-
   if (successData) {
-    const now = new Date()
     return (
       <>
-        {/* Print Slip */}
-        <div className="hidden print:block p-8 font-sans">
-          <div style={{ borderBottom: '3px solid #7B1113', paddingBottom: '12px', marginBottom: '16px' }}>
-            <p style={{ fontWeight: 900, fontSize: '18px', color: '#7B1113' }}>
-              SORSOGON STATE UNIVERSITY — BULAN CAMPUS
-            </p>
-            <p style={{ fontSize: '13px', color: '#666' }}>Registrar's Office — Pick Up Slip</p>
-          </div>
-          <div style={{ marginBottom: '20px', textAlign: 'center' }}>
-            <p style={{ fontSize: '13px', color: '#666', marginBottom: '4px' }}>QUEUE NUMBER</p>
-            <p style={{ fontSize: '64px', fontWeight: 900, color: '#7B1113', lineHeight: 1 }}>
-              {successData.queueNumber}
-            </p>
-          </div>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-            {[
-              ['Name', fullName],
-              ['Contact', contactNumber],
-              ['ID Number', idNumber || '—'],
-              ['Tracking Code', trackingCode || '—'],
-              ['Date & Time', now.toLocaleString('en-PH', { dateStyle: 'long', timeStyle: 'short' })],
-            ].map(([label, value]) => (
-              <tr key={label} style={{ borderBottom: '1px solid #eee' }}>
-                <td style={{ padding: '6px 8px', fontWeight: 700, color: '#555', width: '35%' }}>{label}</td>
-                <td style={{ padding: '6px 8px', color: '#222' }}>{value}</td>
-              </tr>
-            ))}
-          </table>
-          <div style={{ marginTop: '20px', padding: '12px', background: '#F0F9FF', border: '1px solid #BAE6FD', borderRadius: '8px' }}>
-            <p style={{ fontSize: '12px', color: '#555' }}>
-              Please proceed to the <strong>Registrar window</strong> and present this slip when your queue number is called.
-            </p>
-          </div>
-        </div>
+        {/* No printed slip is issued on the pick-up path. The visitor already
+            holds the slip produced when the document was originally requested,
+            which the registrar uses to verify the document and compute the fee.
+            Only the queue number and the tracking code are shown on screen. */}
 
         {/* Screen Success */}
-        <div className="min-h-screen flex flex-col relative overflow-hidden print:hidden"
+        <div className="min-h-screen flex flex-col relative overflow-hidden"
           style={{ background: 'linear-gradient(135deg, #7B1113 0%, #A01515 40%, #7B1113 100%)' }}>
           <div className="h-1.5 w-full"
             style={{ background: 'linear-gradient(90deg, #C9A84C, #F0D080, #C9A84C)' }} />
@@ -114,14 +83,22 @@ export default function PickUpPage() {
               <p className="text-gray-500 text-sm mt-1">Please wait for your number to be called at the window</p>
             </div>
 
-            <button
-              onClick={handlePrint}
-              className="flex items-center gap-3 px-8 py-4 bg-white rounded-2xl font-black text-lg shadow-lg transition active:scale-95"
-              style={{ color: '#7B1113' }}
-            >
-              <Printer className="w-6 h-6" />
-              PRINT SLIP
-            </button>
+            {trackingCode.trim() !== '' && (
+              <div
+                className="rounded-2xl px-10 py-4 border-2"
+                style={{ background: 'rgba(255,255,255,0.12)', borderColor: 'rgba(240,208,128,0.6)' }}
+              >
+                <p className="text-white/60 text-sm mb-1">Tracking Code</p>
+                <p className="text-2xl font-black tracking-widest" style={{ color: '#F0D080' }}>
+                  {trackingCode.trim().toUpperCase()}
+                </p>
+              </div>
+            )}
+
+            <p className="text-white/70 text-base max-w-md">
+              Please present the slip from your original document request at the
+              Registrar window when your queue number is called.
+            </p>
 
             <p className="text-white/40 text-sm">Returning to home screen in 15 seconds...</p>
           </div>

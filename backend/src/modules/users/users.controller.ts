@@ -17,7 +17,7 @@ import {
     constructor(private readonly usersService: UsersService) {}
   
     @Get()
-    @Roles(UserRole.ADMIN, UserRole.STAFF)
+    @Roles(UserRole.ADMIN)
     findAll(
       @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
       @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
@@ -28,7 +28,7 @@ import {
     }
   
     @Get(':id')
-    @Roles(UserRole.ADMIN, UserRole.STAFF)
+    @Roles(UserRole.ADMIN)
     findOne(@Param('id', ParseUUIDPipe) id: string) {
       return this.usersService.findOne(id);
     }
@@ -40,7 +40,7 @@ import {
     }
   
     @Patch(':id')
-    @Roles(UserRole.ADMIN, UserRole.STAFF)
+    @Roles(UserRole.ADMIN)
     update(
       @Param('id', ParseUUIDPipe) id: string,
       @Body() dto: UpdateUserDto,
