@@ -59,14 +59,19 @@ export default function HomePage() {
   }
 
   const handlePurpose = (purpose: 'document-request' | 'pickup') => {
-    const params = new URLSearchParams({
-      firstName: details.firstName,
-      lastName: details.lastName,
-      contactNumber: details.contactNumber,
-      idNumber: details.idNumber,
-      visitorType: details.visitorType,
+    // Visitor details are passed through router state rather than the URL so
+    // that personal information is not written into the address bar, the
+    // browser history, or the back-button stack of a shared kiosk device.
+    navigate(`/${purpose}`, {
+      state: {
+        firstName: details.firstName,
+        lastName: details.lastName,
+        contactNumber: details.contactNumber,
+        idNumber: details.idNumber,
+        visitorType: details.visitorType,
+      },
+      replace: true,
     })
-    navigate(`/${purpose}?${params.toString()}`)
   }
 
   return (

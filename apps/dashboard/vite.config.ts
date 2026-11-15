@@ -28,11 +28,13 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        // API responses are never cached. Caching a failed request would keep
+        // the application showing stale or error content for the lifetime of
+        // the cache entry while the backend instance resumes from idle.
         runtimeCaching: [
           {
             urlPattern: ({ url }) => url.pathname.startsWith('/api/'),
-            handler: 'NetworkFirst',
-            options: { cacheName: 'api-cache', expiration: { maxEntries: 50, maxAgeSeconds: 300 } },
+            handler: 'NetworkOnly',
           },
         ],
       },

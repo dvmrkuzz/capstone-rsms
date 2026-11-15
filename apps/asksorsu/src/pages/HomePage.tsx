@@ -229,7 +229,10 @@ export default function HomePage() {
               <div className="absolute bottom-0 left-0 right-0 h-0.5"
                 style={{ background: 'linear-gradient(90deg, #C9A84C, #F0D080, #C9A84C)' }} />
             </div>
-            <div className="px-5 pb-5 -mt-5">
+            {/* Positioned so that the badge paints above the banner above it.
+                A static block would be painted beneath the banner, which is
+                relatively positioned, regardless of document order. */}
+            <div className="px-5 pb-5 -mt-5 relative z-10">
               <div className="w-12 h-12 rounded-xl bg-white shadow-md flex items-center justify-center border-2 border-white">
                 <Megaphone className="w-6 h-6" style={{ color: '#7B1113' }} />
               </div>

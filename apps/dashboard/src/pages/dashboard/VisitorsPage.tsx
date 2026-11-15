@@ -5,6 +5,7 @@ import api from '../../lib/api'
 import PageHeader from '../../components/ui/PageHeader'
 import StatCard from '../../components/ui/StatCard'
 import type { VisitorLog } from '../../types'
+import Skeleton from '../../components/ui/Skeleton'
 
 const PURPOSE_OPTIONS = [
   { value: 'document_request', label: 'Document Request' },
@@ -135,7 +136,20 @@ export default function VisitorsPage() {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {isLoading ? (
-                <tr><td colSpan={8} className="text-center py-10 text-gray-400">Loading...</td></tr>
+                <>
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <tr key={i} aria-busy="true">
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-16" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-32" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-20" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-28" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-24" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-20" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-16" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-14" /></td>
+                    </tr>
+                  ))}
+                </>
               ) : visitors?.data?.length === 0 ? (
                 <tr><td colSpan={8} className="text-center py-10 text-gray-400">No visitors today</td></tr>
               ) : (

@@ -9,6 +9,7 @@ import api from '../../lib/api'
 import PageHeader from '../../components/ui/PageHeader'
 import StatCard from '../../components/ui/StatCard'
 import { useAuthStore } from '../../store/auth.store'
+import Skeleton from '../../components/ui/Skeleton'
 
 const STATUS_COLORS: Record<string, string> = {
   pending: '#F59E0B',
@@ -36,9 +37,24 @@ export default function AnalyticsPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64 text-gray-400">
-        <Loader2 className="w-8 h-8 animate-spin mr-3" />
-        Loading analytics...
+      <div className="space-y-6" role="status" aria-busy="true">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+              <Skeleton className="h-3 w-24 mb-3" />
+              <Skeleton className="h-8 w-20" />
+            </div>
+          ))}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <div key={i} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+              <Skeleton className="h-4 w-40 mb-4" />
+              <Skeleton className="h-56 w-full rounded-xl" />
+            </div>
+          ))}
+        </div>
+        <span className="sr-only">Loading analytics</span>
       </div>
     )
   }

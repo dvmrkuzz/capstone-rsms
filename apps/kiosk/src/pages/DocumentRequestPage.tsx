@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import {
   Loader2, FileText, ClipboardList, FileCheck2,
   GraduationCap, ShieldCheck, Award, FileMinus, Stamp, Printer,
@@ -7,6 +7,7 @@ import {
 import type { LucideIcon } from 'lucide-react'
 import api from '../lib/api'
 import KioskStepHeader from '../components/KioskStepHeader'
+import Skeleton from '../components/Skeleton'
 
 type Step = 'doc-type' | 'request-details' | 'success'
 
@@ -34,16 +35,34 @@ const DOC_ICONS: Record<string, LucideIcon> = {
   'Authentication': Stamp,
 }
 
+
+interface VisitorState {
+  firstName: string
+  lastName: string
+  contactNumber: string
+  idNumber: string
+  visitorType: string
+}
+
 export default function DocumentRequestPage() {
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
   const printRef = useRef<HTMLDivElement>(null)
 
-  const firstName = searchParams.get('firstName') ?? ''
-  const lastName = searchParams.get('lastName') ?? ''
-  const contactNumber = searchParams.get('contactNumber') ?? ''
-  const idNumber = searchParams.get('idNumber') ?? ''
-  const visitorType = searchParams.get('visitorType') ?? 'non_student'
+  const { state } = useLocation()
+  const visitor = state as VisitorState | null
+
+  // The kiosk is a shared device. If this page is reached without visitor
+  // details in router state -- by a refresh, a bookmark, or a direct URL --
+  // return to the welcome screen rather than submitting an incomplete record.
+  useEffect(() => {
+    if (!visitor?.firstName) navigate('/', { replace: true })
+  }, [visitor, navigate])
+
+  const firstName = visitor?.firstName ?? ''
+  const lastName = visitor?.lastName ?? ''
+  const contactNumber = visitor?.contactNumber ?? ''
+  const idNumber = visitor?.idNumber ?? ''
+  const visitorType = visitor?.visitorType ?? 'non_student'
   const fullName = `${firstName} ${lastName}`.trim()
 
   const [step, setStep] = useState<Step>('doc-type')
@@ -241,8 +260,20 @@ export default function DocumentRequestPage() {
             <p className="text-gray-500 mb-6 text-base">Tap to select the document type</p>
 
             {loadingDocTypes ? (
-              <div className="flex items-center justify-center py-20">
-                <Loader2 className="w-10 h-10 animate-spin" style={{ color: '#7B1113' }} />
+              <div className="grid grid-cols-2 gap-5" role="status" aria-busy="true">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="bg-white rounded-2xl p-6 shadow-sm border-2 border-transparent">
+                    <Skeleton className="w-14 h-14 rounded-xl mb-3" />
+                    <Skeleton className="h-5 w-3/4 mb-2" />
+                    <Skeleton className="h-4 w-full mb-1.5" />
+                    <Skeleton className="h-4 w-2/3" />
+                    <div className="flex items-center gap-4 mt-3">
+                      <Skeleton className="h-3 w-24" />
+                      <Skeleton className="h-3 w-12" />
+                    </div>
+                  </div>
+                ))}
+                <span className="sr-only">Loading document types</span>
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-5">

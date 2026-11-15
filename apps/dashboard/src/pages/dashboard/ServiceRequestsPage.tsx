@@ -4,6 +4,7 @@ import { Search, FileText, ArrowRight, ChevronDown } from 'lucide-react'
 import api from '../../lib/api'
 import PageHeader from '../../components/ui/PageHeader'
 import type { ServiceRequest, RequestStatus } from '../../types'
+import Skeleton from '../../components/ui/Skeleton'
 
 const STATUS_COLORS: Record<RequestStatus, string> = {
   pending: 'bg-amber-100 text-amber-700',
@@ -155,7 +156,17 @@ export default function ServiceRequestsPage() {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {isLoading ? (
-                <tr><td colSpan={5} className="text-center py-10 text-gray-400">Loading...</td></tr>
+                <>
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <tr key={i} aria-busy="true">
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-32" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-36" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-24" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-20" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-16" /></td>
+                    </tr>
+                  ))}
+                </>
               ) : data?.data?.length === 0 ? (
                 <tr><td colSpan={5} className="text-center py-10 text-gray-400">No requests found</td></tr>
               ) : (

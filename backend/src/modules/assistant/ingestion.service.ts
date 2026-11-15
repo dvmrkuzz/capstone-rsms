@@ -1,12 +1,13 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, IsNull, MoreThan } from 'typeorm';
 import * as fs from 'fs';
 import * as path from 'path';
 import { Document } from '@langchain/core/documents';
 import { MemoryVectorStore } from '@langchain/classic/vectorstores/memory';
 import { RecursiveCharacterTextSplitter } from '@langchain/classic/text_splitter';
 import { DocumentType } from '../../database/entities/document-type.entity';
+import { Announcement } from '../../database/entities/announcement.entity';
 import { FaqService } from '../faq/faq.service';
 import { XenovaEmbeddings } from './embeddings/xenova-embeddings';
 
@@ -22,6 +23,8 @@ export class IngestionService implements OnModuleInit {
   constructor(
     @InjectRepository(DocumentType)
     private readonly documentTypeRepository: Repository<DocumentType>,
+    @InjectRepository(Announcement)
+    private readonly announcementRepository: Repository<Announcement>,
     private readonly faqService: FaqService,
   ) {}
 
@@ -37,20 +40,35 @@ export class IngestionService implements OnModuleInit {
     if (this.ready) await this.ready;
   }
 
+  /**
+   * Rebuilds the knowledge base so that newly published announcements become
+   * answerable without restarting the server. Called by the announcements
+   * module whenever an announcement is created, edited, deactivated or
+   * deleted. Failures are logged rather than propagated: an announcement must
+   * still be saved even if re-indexing fails.
+   */
+  async refresh(): Promise<void> {
+    this.ready = this.ingest().catch((err) => {
+      this.logger.error('Knowledge base refresh failed', err as Error);
+    });
+    await this.ready;
+  }
+
   async ingest(): Promise<void> {
     this.logger.log('Ingesting Registrar Assistant knowledge base...');
 
-    const [fileChunks, faqDocs, documentTypeDocs] = await Promise.all([
+    const [fileChunks, faqDocs, documentTypeDocs, announcementDocs] = await Promise.all([
       this.loadKnowledgeBaseFiles(),
       this.loadFaqs(),
       this.loadDocumentTypes(),
+      this.loadAnnouncements(),
     ]);
 
-    const docs = [...fileChunks, ...faqDocs, ...documentTypeDocs];
+    const docs = [...fileChunks, ...faqDocs, ...documentTypeDocs, ...announcementDocs];
 
     if (!docs.length) {
       this.logger.warn(
-        'No knowledge base content found — assistant will rely on Gemini alone, with no grounded retrieval.',
+        'No knowledge base content found — the assistant will answer without grounded retrieval.',
       );
       return;
     }
@@ -58,7 +76,8 @@ export class IngestionService implements OnModuleInit {
     this.vectorStore = await MemoryVectorStore.fromDocuments(docs, this.embeddings);
     this.logger.log(
       `Knowledge base ready: ${docs.length} chunks indexed ` +
-        `(${fileChunks.length} from documents, ${faqDocs.length} FAQs, ${documentTypeDocs.length} document types).`,
+        `(${fileChunks.length} from documents, ${faqDocs.length} FAQs, ` +
+        `${documentTypeDocs.length} document types, ${announcementDocs.length} announcements).`,
     );
   }
 
@@ -70,12 +89,27 @@ export class IngestionService implements OnModuleInit {
     await this.waitUntilReady();
     if (!this.vectorStore) return [];
 
-    const isFaqOrDocType = (doc: Document) =>
-      doc.metadata.source === 'faq' || doc.metadata.source === 'document_type';
+    // An announcement indexed earlier in the process lifetime may have expired
+    // since. Drop those at retrieval time so the assistant never quotes a
+    // notice that is no longer in effect.
+    const isLive = (doc: Document) => {
+      if (doc.metadata.source !== 'announcement') return true;
+      const expiresAt = doc.metadata.expiresAt as string | null;
+      return !expiresAt || new Date(expiresAt) > new Date();
+    };
+
+    const isShortForm = (doc: Document) =>
+      doc.metadata.source === 'faq' ||
+      doc.metadata.source === 'document_type' ||
+      doc.metadata.source === 'announcement';
 
     const [fileDocs, otherDocs] = await Promise.all([
-      this.vectorStore.similaritySearch(query, Math.ceil(k * 0.6), (doc) => !isFaqOrDocType(doc)),
-      this.vectorStore.similaritySearch(query, Math.floor(k * 0.4) + 1, isFaqOrDocType),
+      this.vectorStore.similaritySearch(query, Math.ceil(k * 0.6), (doc) => !isShortForm(doc)),
+      this.vectorStore.similaritySearch(
+        query,
+        Math.floor(k * 0.4) + 2,
+        (doc) => isShortForm(doc) && isLive(doc),
+      ),
     ]);
 
     return [...fileDocs, ...otherDocs].slice(0, k + 2);
@@ -166,6 +200,48 @@ export class IngestionService implements OnModuleInit {
           metadata: { source: 'faq', category: faq.category ?? null, faqId: faq.id },
         }),
     );
+  }
+
+  /**
+   * Indexes announcements that are currently in effect, so that the assistant
+   * can answer questions about them without the registrar having to add a
+   * separate document to the knowledge base folder.
+   */
+  private async loadAnnouncements(): Promise<Document[]> {
+    const announcements = await this.announcementRepository.find({
+      where: [
+        { isActive: true, expiresAt: IsNull() },
+        { isActive: true, expiresAt: MoreThan(new Date()) },
+      ],
+      order: { createdAt: 'DESC' },
+      take: 50,
+    });
+
+    return announcements.map((a) => {
+      const posted = a.createdAt.toLocaleDateString('en-PH', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
+      const until = a.expiresAt
+        ? ` This announcement is in effect until ${a.expiresAt.toLocaleDateString('en-PH', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+          })}.`
+        : '';
+
+      return new Document({
+        pageContent:
+          `Registrar announcement posted on ${posted}. ` +
+          `Title: ${a.title}. ${a.content}${until}`,
+        metadata: {
+          source: 'announcement',
+          announcementId: a.id,
+          expiresAt: a.expiresAt ? a.expiresAt.toISOString() : null,
+        },
+      });
+    });
   }
 
   private async loadDocumentTypes(): Promise<Document[]> {

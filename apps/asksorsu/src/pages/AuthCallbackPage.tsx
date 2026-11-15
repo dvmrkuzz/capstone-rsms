@@ -12,16 +12,19 @@ export default function AuthCallbackPage() {
   useEffect(() => {
     const token = searchParams.get('token')
     if (!token) {
-      navigate('/login')
+      navigate('/login', { replace: true })
       return
     }
 
+    // Every navigation from this page replaces the current history entry so
+    // that the callback URL, which carries the access token as a query
+    // parameter, is not retained in the browser history of the device.
     api.get('/auth/me', { headers: { Authorization: `Bearer ${token}` } })
       .then(res => {
         setAuth(res.data, token)
-        navigate('/my-requests')
+        navigate('/my-requests', { replace: true })
       })
-      .catch(() => navigate('/login'))
+      .catch(() => navigate('/login', { replace: true }))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

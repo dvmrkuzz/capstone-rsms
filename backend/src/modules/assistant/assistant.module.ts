@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DocumentType } from '../../database/entities/document-type.entity';
+import { Announcement } from '../../database/entities/announcement.entity';
 import { FaqModule } from '../faq/faq.module';
 import { ServicesModule } from '../services/services.module';
 import { InquiryModule } from '../inquiry/inquiry.module';
@@ -10,12 +11,13 @@ import { IngestionService } from './ingestion.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([DocumentType]),
+    TypeOrmModule.forFeature([DocumentType, Announcement]),
     FaqModule,
     ServicesModule,
     InquiryModule,
   ],
   controllers: [AssistantController],
   providers: [AssistantService, IngestionService],
+  exports: [IngestionService],
 })
 export class AssistantModule {}

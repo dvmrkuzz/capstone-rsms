@@ -7,13 +7,25 @@ import {
 } from '../../database/entities/announcement.entity';
 import { User } from '../../database/entities/user.entity';
 import { CreateAnnouncementDto, UpdateAnnouncementDto } from './dto';
+import { IngestionService } from '../assistant/ingestion.service';
 
 @Injectable()
 export class AnnouncementsService {
   constructor(
     @InjectRepository(Announcement)
     private readonly announcementRepository: Repository<Announcement>,
+    private readonly ingestionService: IngestionService,
   ) {}
+
+  /**
+   * Re-indexes the assistant's knowledge base after an announcement changes,
+   * so the public inquiry assistant can answer questions about it immediately.
+   * Deliberately not awaited by the callers: indexing must never delay or fail
+   * the registrar's save operation.
+   */
+  private reindexAssistant(): void {
+    void this.ingestionService.refresh();
+  }
 
   async findAll(page = 1, limit = 10, target?: AnnouncementTarget) {
     const skip = (page - 1) * limit;
@@ -82,7 +94,9 @@ export class AnnouncementsService {
       imageBase64: dto.imageBase64 ?? null,
       imageBase64List: dto.imageBase64List ? JSON.stringify(dto.imageBase64List) : null,
     });
-    return this.announcementRepository.save(announcement);
+    const saved = await this.announcementRepository.save(announcement);
+    this.reindexAssistant();
+    return saved;
   }
 
   async update(id: string, dto: UpdateAnnouncementDto): Promise<Announcement> {
@@ -97,18 +111,21 @@ export class AnnouncementsService {
       ...(dto.imageBase64List !== undefined && { imageBase64List: JSON.stringify(dto.imageBase64List) }),
 
     });
+    this.reindexAssistant();
     return this.findOne(id);
   }
 
   async deactivate(id: string): Promise<{ message: string }> {
     await this.findOne(id);
     await this.announcementRepository.update(id, { isActive: false });
+    this.reindexAssistant();
     return { message: 'Announcement deactivated' };
   }
   
   async remove(id: string): Promise<{ message: string }> {
     await this.findOne(id);
     await this.announcementRepository.delete(id);
+    this.reindexAssistant();
     return { message: 'Announcement deleted' };
   }
 }

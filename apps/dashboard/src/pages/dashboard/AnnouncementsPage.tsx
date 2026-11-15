@@ -5,6 +5,7 @@ import api from '../../lib/api'
 import PageHeader from '../../components/ui/PageHeader'
 import EmptyState from '../../components/ui/EmptyState'
 import type { Announcement } from '../../types'
+import Skeleton from '../../components/ui/Skeleton'
 
 const TARGET_COLORS: Record<string, string> = {
   all: 'bg-blue-100 text-blue-700',
@@ -135,7 +136,16 @@ export default function AnnouncementsPage() {
 
       <div className="space-y-3">
         {isLoading ? (
-          <div className="text-center py-10 text-gray-400">Loading...</div>
+          <div className="space-y-3" role="status" aria-busy="true">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                <Skeleton className="h-5 w-56 mb-3" />
+                <Skeleton className="h-4 w-full mb-1.5" />
+                <Skeleton className="h-4 w-4/5" />
+              </div>
+            ))}
+            <span className="sr-only">Loading announcements</span>
+          </div>
         ) : data?.data?.length === 0 ? (
           <EmptyState icon={Megaphone} title="No announcements yet" hint="Post one so students and staff see it here." />
         ) : (

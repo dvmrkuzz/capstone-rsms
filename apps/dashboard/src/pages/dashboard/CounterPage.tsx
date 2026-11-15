@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { CheckCircle, Users, Clock, Hash } from 'lucide-react'
 import api from '../../lib/api'
 import PageHeader from '../../components/ui/PageHeader'
+import Skeleton from '../../components/ui/Skeleton'
 
 interface QueueVisitor {
   id: string
@@ -76,7 +77,12 @@ export default function CounterPage() {
       {/* Now Serving Card */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-10 text-center">
         {isLoading ? (
-          <p className="text-gray-400 py-10">Loading queue...</p>
+          <div className="py-10 flex flex-col items-center" role="status" aria-busy="true">
+            <Skeleton className="h-4 w-28 mb-4" />
+            <Skeleton className="h-20 w-48 mb-4 rounded-xl" />
+            <Skeleton className="h-4 w-40" />
+            <span className="sr-only">Loading queue</span>
+          </div>
         ) : nowServing ? (
           <>
             <p className="text-sm font-semibold uppercase tracking-widest text-gray-400 mb-2">Now Serving</p>

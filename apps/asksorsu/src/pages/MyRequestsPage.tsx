@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Loader2, FileText, Inbox } from 'lucide-react'
+import { FileText, Inbox } from 'lucide-react'
+import Skeleton from '../components/Skeleton'
 import api from '../lib/api'
 import { useAuthStore } from '../store/auth.store'
 import PinGate from '../components/PinGate'
@@ -64,8 +65,23 @@ export default function MyRequestsPage() {
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-20 text-gray-400">
-            <Loader2 className="w-7 h-7 animate-spin mr-3" /> Loading your requests...
+          <div className="space-y-3" role="status" aria-busy="true">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <Skeleton className="w-10 h-10 rounded-lg shrink-0" />
+                    <div>
+                      <Skeleton className="h-4 w-44 mb-2" />
+                      <Skeleton className="h-3 w-32 mb-2" />
+                      <Skeleton className="h-3 w-40" />
+                    </div>
+                  </div>
+                  <Skeleton className="h-6 w-20 rounded-full" />
+                </div>
+              </div>
+            ))}
+            <span className="sr-only">Loading your requests</span>
           </div>
         ) : error ? (
           <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-5 py-4 text-sm">

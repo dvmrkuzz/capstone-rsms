@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { Loader2 } from 'lucide-react'
 import api from '../lib/api'
 import KioskStepHeader from '../components/KioskStepHeader'
@@ -10,15 +10,32 @@ interface SuccessData {
   visitorName: string
 }
 
+
+interface VisitorState {
+  firstName: string
+  lastName: string
+  contactNumber: string
+  idNumber: string
+  visitorType: string
+}
+
 export default function PickUpPage() {
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
+  const { state } = useLocation()
+  const visitor = state as VisitorState | null
 
-  const firstName = searchParams.get('firstName') ?? ''
-  const lastName = searchParams.get('lastName') ?? ''
-  const contactNumber = searchParams.get('contactNumber') ?? ''
-  const idNumber = searchParams.get('idNumber') ?? ''
-  const visitorType = searchParams.get('visitorType') ?? 'non_student'
+  // The kiosk is a shared device. If this page is reached without visitor
+  // details in router state -- by a refresh, a bookmark, or a direct URL --
+  // return to the welcome screen rather than submitting an incomplete record.
+  useEffect(() => {
+    if (!visitor?.firstName) navigate('/', { replace: true })
+  }, [visitor, navigate])
+
+  const firstName = visitor?.firstName ?? ''
+  const lastName = visitor?.lastName ?? ''
+  const contactNumber = visitor?.contactNumber ?? ''
+  const idNumber = visitor?.idNumber ?? ''
+  const visitorType = visitor?.visitorType ?? 'non_student'
   const fullName = `${firstName} ${lastName}`.trim()
 
   const [submitting, setSubmitting] = useState(false)
