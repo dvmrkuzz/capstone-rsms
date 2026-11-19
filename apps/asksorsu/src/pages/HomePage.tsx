@@ -30,6 +30,12 @@ export default function HomePage() {
   const { data: announcements, isLoading } = useQuery({
     queryKey: ['public-announcements'],
     queryFn: () => api.get('/announcements/active').then(r => r.data),
+    // Announcements are published from the dashboard while this page may
+    // already be open on a visitor's device, so the list is refreshed on an
+    // interval as well as when the window regains focus.
+    refetchInterval: 60_000,
+    refetchIntervalInBackground: false,
+    staleTime: 30_000,
   })
 
   const quickLinks = [
