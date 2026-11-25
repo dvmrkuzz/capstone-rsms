@@ -189,13 +189,21 @@ export default function VisitorsPage() {
                     </td>
                     <td className="px-4 py-3">
                       <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                        v.isServed ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                        v.queueStatus === 'served'
+                          ? 'bg-green-100 text-green-700'
+                          : v.queueStatus === 'skipped'
+                          ? 'bg-gray-100 text-gray-600'
+                          : 'bg-amber-100 text-amber-700'
                       }`}>
-                        {v.isServed ? 'Served' : 'Waiting'}
+                        {v.queueStatus === 'served'
+                          ? 'Served'
+                          : v.queueStatus === 'skipped'
+                          ? 'Not Present'
+                          : 'Waiting'}
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      {!v.isServed && (
+                      {v.queueStatus === 'waiting' && (
                         <button
                           onClick={() => markServed.mutate(v.id)}
                           disabled={markServed.isPending}

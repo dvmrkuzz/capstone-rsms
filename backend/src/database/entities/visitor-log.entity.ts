@@ -16,6 +16,23 @@ export enum VisitorType {
   NON_STUDENT = 'non_student',
 }
 
+/**
+ * Lifecycle of a queue number.
+ *
+ *   WAITING  the number has been issued and has not yet been called
+ *   SKIPPED  the number was called but the visitor was not present
+ *   SERVED   the visitor was attended to at the counter
+ *
+ * A skipped number is not a served number: it must never carry a
+ * time_out or a served_by_id, because doing so would overstate the
+ * number of visitors actually attended to.
+ */
+export enum QueueStatus {
+  WAITING = 'waiting',
+  SKIPPED = 'skipped',
+  SERVED = 'served',
+}
+
 @Entity('visitor_logs')
 export class VisitorLog {
   @PrimaryGeneratedColumn('uuid')
@@ -66,8 +83,17 @@ export class VisitorLog {
   @Column({ nullable: true })
   notes: string;
 
-  @Column({ name: 'is_served', default: false })
-  isServed: boolean;
+  @Column({
+    name: 'queue_status',
+    type: 'enum',
+    enum: QueueStatus,
+    default: QueueStatus.WAITING,
+  })
+  queueStatus: QueueStatus;
+
+  /** Number of times a skipped number has been returned to the queue. */
+  @Column({ name: 'recall_count', type: 'smallint', default: 0 })
+  recallCount: number;
 
   @ManyToOne(() => User, { nullable: true })
   @JoinColumn({ name: 'served_by_id' })

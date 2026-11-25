@@ -65,4 +65,20 @@ export class VisitorsController {
   ) {
     return this.visitorsService.markServed(id, req.user.id);
   }
+
+  /** Called but not present: advance the queue without recording a service. */
+  @Patch(':id/skip')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.STAFF)
+  skip(@Param('id', ParseUUIDPipe) id: string) {
+    return this.visitorsService.skip(id);
+  }
+
+  /** The visitor came back: return the skipped number to the queue. */
+  @Patch(':id/recall')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.STAFF)
+  recall(@Param('id', ParseUUIDPipe) id: string) {
+    return this.visitorsService.recall(id);
+  }
 }

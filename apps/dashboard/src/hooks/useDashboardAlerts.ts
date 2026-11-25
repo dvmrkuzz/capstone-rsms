@@ -36,7 +36,7 @@ export function useDashboardAlerts() {
       return
     }
 
-    const newOnes = queue.filter(v => !seenVisitorIds.current!.has(v.id) && !v.isServed)
+    const newOnes = queue.filter(v => !seenVisitorIds.current!.has(v.id) && v.queueStatus === 'waiting')
     if (newOnes.length) {
       newOnes.forEach(v => {
         push({

@@ -1,10 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
 import {
   VisitorLog,
   VisitorType,
   VisitorPurpose,
+  QueueStatus,
 } from '../../database/entities/visitor-log.entity';
 import { ServiceRequest, RequestStatus } from '../../database/entities/service-request.entity';
 import { DocumentType } from '../../database/entities/document-type.entity';
@@ -91,7 +92,7 @@ export class VisitorsService {
       documentTypeId: dto.documentTypeId,
       trackingNumber,
       timeIn: new Date(),
-      isServed: false,
+      queueStatus: QueueStatus.WAITING,
     });
 
     await this.visitorRepository.save(visitor);
@@ -156,10 +157,58 @@ export class VisitorsService {
   }
 
   async markServed(id: string, staffId: string): Promise<VisitorLog> {
+    const visitor = await this.findOne(id);
+    if (visitor.queueStatus === QueueStatus.SERVED) {
+      throw new BadRequestException('This queue number has already been served.');
+    }
     await this.visitorRepository.update(id, {
-      isServed: true,
+      queueStatus: QueueStatus.SERVED,
       servedById: staffId,
       timeOut: new Date(),
+    });
+    return this.findOne(id);
+  }
+
+  /**
+   * Records that a queue number was called but the visitor was not
+   * present. The record is not marked served and receives no time_out,
+   * so skipped numbers are excluded from the served count.
+   */
+  async skip(id: string): Promise<VisitorLog> {
+    const visitor = await this.findOne(id);
+    if (visitor.queueStatus !== QueueStatus.WAITING) {
+      throw new BadRequestException(
+        'Only a waiting queue number can be skipped.',
+      );
+    }
+    await this.visitorRepository.update(id, {
+      queueStatus: QueueStatus.SKIPPED,
+    });
+    return this.findOne(id);
+  }
+
+  /**
+   * Returns a skipped number to the queue when the visitor comes back.
+   * The visitor keeps the queue number already printed on the slip, and
+   * because the queue is ordered by time of arrival the number returns
+   * to its original position. One recall is allowed per visitor, which
+   * mirrors the single final call used at service counters.
+   */
+  async recall(id: string): Promise<VisitorLog> {
+    const visitor = await this.findOne(id);
+    if (visitor.queueStatus !== QueueStatus.SKIPPED) {
+      throw new BadRequestException(
+        'Only a skipped queue number can be returned to the queue.',
+      );
+    }
+    if (visitor.recallCount >= 1) {
+      throw new BadRequestException(
+        'This queue number has already been recalled once. The visitor must register again.',
+      );
+    }
+    await this.visitorRepository.update(id, {
+      queueStatus: QueueStatus.WAITING,
+      recallCount: visitor.recallCount + 1,
     });
     return this.findOne(id);
   }
@@ -183,8 +232,9 @@ export class VisitorsService {
         documentType: undefined,
       })),
       total: visitors.length,
-      waiting: visitors.filter(v => !v.isServed).length,
-      served: visitors.filter(v => v.isServed).length,
+      waiting: visitors.filter(v => v.queueStatus === QueueStatus.WAITING).length,
+      skipped: visitors.filter(v => v.queueStatus === QueueStatus.SKIPPED).length,
+      served: visitors.filter(v => v.queueStatus === QueueStatus.SERVED).length,
     };
   }
 
@@ -215,7 +265,7 @@ export class VisitorsService {
     const stillWaiting = await this.visitorRepository
       .createQueryBuilder('v')
       .where('v.time_in BETWEEN :start AND :end', { start: today, end: tomorrow })
-      .andWhere('v.is_served = false')
+      .andWhere("v.queue_status = 'waiting'")
       .getCount();
 
     return { totalToday: total, currentlyInside: stillWaiting };

@@ -56,7 +56,8 @@ export interface VisitorLog {
   timeIn: string
   timeOut?: string
   notes?: string
-  isServed: boolean
+  queueStatus: 'waiting' | 'skipped' | 'served'
+  recallCount: number
   servedById?: string
   servedBy?: Partial<User>
 }

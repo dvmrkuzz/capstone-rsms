@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { CheckCircle, Users, Clock, Hash } from 'lucide-react'
+import { CheckCircle, Users, Clock, Hash, SkipForward, Undo2 } from 'lucide-react'
 import api from '../../lib/api'
 import PageHeader from '../../components/ui/PageHeader'
 import Skeleton from '../../components/ui/Skeleton'
@@ -14,7 +14,8 @@ interface QueueVisitor {
   trackingNumber?: string
   documentTypeName?: string | null
   timeIn: string
-  isServed: boolean
+  queueStatus: 'waiting' | 'skipped' | 'served'
+  recallCount: number
 }
 
 const VISITOR_TYPE_LABELS: Record<string, string> = {
@@ -40,7 +41,25 @@ export default function CounterPage() {
     },
   })
 
-  const waiting: QueueVisitor[] = (data?.queue ?? []).filter((v: QueueVisitor) => !v.isServed)
+  const skipVisitor = useMutation({
+    mutationFn: (id: string) => api.patch(`/visitors/${id}/skip`, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['visitors-queue-today'] })
+      queryClient.invalidateQueries({ queryKey: ['visitors-list'] })
+    },
+  })
+
+  const recallVisitor = useMutation({
+    mutationFn: (id: string) => api.patch(`/visitors/${id}/recall`, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['visitors-queue-today'] })
+      queryClient.invalidateQueries({ queryKey: ['visitors-list'] })
+    },
+  })
+
+  const all: QueueVisitor[] = data?.queue ?? []
+  const waiting = all.filter((v) => v.queueStatus === 'waiting')
+  const skipped = all.filter((v) => v.queueStatus === 'skipped')
   const nowServing = waiting[0] ?? null
   const nextUp = waiting.slice(1, 6)
 
@@ -97,15 +116,26 @@ export default function CounterPage() {
             {nowServing.trackingNumber && (
               <p className="text-xs text-gray-400 font-mono mt-1">{nowServing.trackingNumber}</p>
             )}
-            <button
-              onClick={() => markServed.mutate(nowServing.id)}
-              disabled={markServed.isPending}
-              className="mt-8 inline-flex items-center gap-2 px-10 py-4 rounded-xl text-white text-lg font-bold disabled:opacity-50 transition hover:opacity-90"
-              style={{ background: '#7B1113' }}
-            >
-              <CheckCircle className="w-6 h-6" />
-              {markServed.isPending ? 'Saving...' : 'Done — Call Next'}
-            </button>
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+              <button
+                onClick={() => markServed.mutate(nowServing.id)}
+                disabled={markServed.isPending || skipVisitor.isPending}
+                className="inline-flex items-center gap-2 px-10 py-4 rounded-xl text-white text-lg font-bold disabled:opacity-50 transition hover:opacity-90"
+                style={{ background: '#7B1113' }}
+              >
+                <CheckCircle className="w-6 h-6" />
+                {markServed.isPending ? 'Saving...' : 'Done — Call Next'}
+              </button>
+              <button
+                onClick={() => skipVisitor.mutate(nowServing.id)}
+                disabled={markServed.isPending || skipVisitor.isPending}
+                title="The number was called but the visitor is not present"
+                className="inline-flex items-center gap-2 px-6 py-4 rounded-xl border-2 border-gray-200 text-gray-600 text-base font-bold disabled:opacity-50 transition hover:bg-gray-50"
+              >
+                <SkipForward className="w-5 h-5" />
+                {skipVisitor.isPending ? 'Skipping...' : 'Not Present — Skip'}
+              </button>
+            </div>
           </>
         ) : (
           <div className="py-10">
@@ -135,6 +165,47 @@ export default function CounterPage() {
                   <span className="text-sm text-gray-700">{v.visitorName}</span>
                 </div>
                 <span className="text-xs text-gray-400">{describe(v)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Skipped — visitors who were called but were not present */}
+      {skipped.length > 0 && (
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+            <h2 className="font-bold text-gray-800 text-sm">Skipped — not present when called</h2>
+            <span className="text-xs text-gray-400">{skipped.length}</span>
+          </div>
+          <div className="divide-y divide-gray-50">
+            {skipped.map((v) => (
+              <div key={v.id} className="px-5 py-3 flex items-center justify-between hover:bg-amber-50/40 transition">
+                <div className="flex items-center gap-3">
+                  <span className="inline-flex items-center gap-1 font-black text-gray-700">
+                    <Hash className="w-3.5 h-3.5 text-gray-400" />
+                    {v.queueNumber}
+                  </span>
+                  <span className="text-sm text-gray-700">{v.visitorName}</span>
+                  {v.recallCount > 0 && (
+                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
+                      recalled once
+                    </span>
+                  )}
+                </div>
+                <button
+                  onClick={() => recallVisitor.mutate(v.id)}
+                  disabled={recallVisitor.isPending || v.recallCount >= 1}
+                  title={
+                    v.recallCount >= 1
+                      ? 'Already recalled once — the visitor must register again'
+                      : 'The visitor has come back: return this number to the queue'
+                  }
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-gray-200 text-xs font-bold text-gray-600 disabled:opacity-40 transition hover:bg-gray-50"
+                >
+                  <Undo2 className="w-3.5 h-3.5" />
+                  Return to Queue
+                </button>
               </div>
             ))}
           </div>
