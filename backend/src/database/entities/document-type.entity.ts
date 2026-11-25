@@ -19,8 +19,25 @@ import {
     @Column({ name: 'processing_days', default: 3 })
     processingDays: number;
   
+    /** Regular-lane fee. Per page when pagesBased is true, otherwise per copy. */
     @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
     fee: number;
+
+    /**
+     * True when the fee is charged per page rather than per copy, as with the
+     * Transcript of Records. The page count cannot be known before the record
+     * is retrieved, so an assessment for such a document is indicative only.
+     */
+    @Column({ name: 'pages_based', default: false })
+    pagesBased: boolean;
+
+    /** Express-lane fee, on the same basis as fee. Null when not offered. */
+    @Column({ name: 'express_fee', type: 'decimal', precision: 10, scale: 2, nullable: true })
+    expressFee: number | null;
+
+    /** Documentary stamps required per issued copy. */
+    @Column({ name: 'documentary_stamps', type: 'smallint', default: 0 })
+    documentaryStamps: number;
   
     @Column({ name: 'requires_clearance', default: false })
     requiresClearance: boolean;

@@ -35,6 +35,9 @@ export interface ServiceRequest {
   status: RequestStatus
   purpose?: string
   copies: number
+  pages: number | null
+  isExpress: boolean
+  assessedFee: number | null
   remarks?: string
   rejectionReason?: string
   trackingNumber: string

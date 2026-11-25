@@ -183,7 +183,11 @@ export default function ServiceRequestsPage() {
                         <td className="px-5 py-3">
                           <p className="font-mono text-xs text-gray-700">{req.trackingNumber}</p>
                           <p className="text-xs text-gray-400 mt-0.5">
-                            {req.copies} {req.copies === 1 ? 'copy' : 'copies'} · {new Date(req.requestedAt).toLocaleDateString()}
+                            {req.copies} {req.copies === 1 ? 'copy' : 'copies'}
+                            {req.pages ? ` · ${req.pages} ${req.pages === 1 ? 'page' : 'pages'}` : ''}
+                            {req.isExpress ? ' · Express' : ''}
+                            {req.assessedFee != null ? ` · ₱${Number(req.assessedFee).toFixed(2)}` : ''}
+                            {' · '}{new Date(req.requestedAt).toLocaleDateString()}
                           </p>
                         </td>
                         <td className="px-5 py-3 text-gray-700">{req.documentType?.name ?? '—'}</td>

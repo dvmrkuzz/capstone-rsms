@@ -5,6 +5,7 @@ import {
   IsEnum,
   IsUUID,
   IsInt,
+  IsBoolean,
   Min,
   Max,
   MaxLength,
@@ -59,6 +60,20 @@ export class KioskCheckinDto {
   @Min(1)
   @Max(10)
   copies?: number;
+
+  /** Page count, for documents charged per page such as the Transcript of Records. */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  pages?: number;
+
+  /** Whether the visitor selected the express lane. */
+  @IsOptional()
+  @IsBoolean()
+  @Type(() => Boolean)
+  isExpress?: boolean;
 
   /** The visitor's stated reason for requesting the document. */
   @IsOptional()

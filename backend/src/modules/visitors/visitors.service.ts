@@ -8,8 +8,9 @@ import {
   QueueStatus,
 } from '../../database/entities/visitor-log.entity';
 import { ServiceRequest, RequestStatus } from '../../database/entities/service-request.entity';
+import { assessFees } from '../services/fee-assessment';
 import { DocumentType } from '../../database/entities/document-type.entity';
-import { KioskCheckinDto } from './dto';
+import { KioskCheckinDto, AssessFeesDto } from './dto';
 
 @Injectable()
 export class VisitorsService {
@@ -70,6 +71,16 @@ export class VisitorsService {
           // kiosk instead of defaulting them; previously both were discarded and
           // survived only as free text inside `remarks`.
           copies: dto.copies ?? 1,
+          pages: docType.pagesBased ? (dto.pages ?? null) : null,
+          isExpress: dto.isExpress ?? false,
+          // Record what the visitor was quoted, so a later change to the fee
+          // schedule does not alter the amount shown on their slip.
+          assessedFee: assessFees(
+            docType,
+            dto.copies ?? 1,
+            docType.pagesBased ? (dto.pages ?? null) : null,
+            dto.isExpress ?? false,
+          ).total,
           purpose: dto.requestPurpose?.trim() || 'Walk-in kiosk request',
           trackingNumber,
           remarks: dto.notes,
@@ -243,6 +254,29 @@ export class VisitorsService {
       where: { isActive: true },
       order: { name: 'ASC' },
     });
+  }
+
+  /**
+   * Works out the fees payable for a prospective document request without
+   * recording anything. Used by the kiosk so the visitor sees the amount
+   * before confirming.
+   */
+  async assessRequestFees(dto: AssessFeesDto) {
+    const docType = await this.documentTypeRepository.findOne({
+      where: { id: dto.documentTypeId, isActive: true },
+    });
+    if (!docType) {
+      throw new NotFoundException('Document type not found.');
+    }
+    const copies = dto.copies ?? 1;
+    const pages = docType.pagesBased ? (dto.pages ?? null) : null;
+    return {
+      documentType: docType.name,
+      copies,
+      pages,
+      isExpress: dto.isExpress ?? false,
+      ...assessFees(docType, copies, pages, dto.isExpress ?? false),
+    };
   }
 
   async getDocumentTypes() {

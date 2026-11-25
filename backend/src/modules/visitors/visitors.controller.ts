@@ -4,7 +4,7 @@ import {
   ParseIntPipe, DefaultValuePipe, Request,
 } from '@nestjs/common';
 import { VisitorsService } from './visitors.service';
-import { KioskCheckinDto } from './dto';
+import { KioskCheckinDto, AssessFeesDto } from './dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -17,6 +17,11 @@ export class VisitorsController {
   @Get('document-types')
   getPublicDocumentTypes() {
     return this.visitorsService.getPublicDocumentTypes();
+  }
+
+  @Post('assess-fees')
+  assessFees(@Body() dto: AssessFeesDto) {
+    return this.visitorsService.assessRequestFees(dto);
   }
 
   @Post('checkin')

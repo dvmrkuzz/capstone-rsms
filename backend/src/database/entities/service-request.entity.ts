@@ -43,6 +43,21 @@ import {
     @Column({ default: 1 })
     copies: number;
 
+    /** Page count, for documents charged per page. Null otherwise. */
+    @Column({ type: 'smallint', nullable: true })
+    pages: number | null;
+
+    /** Whether the requester selected the express lane. */
+    @Column({ name: 'is_express', default: false })
+    isExpress: boolean;
+
+    /**
+     * Total assessed at the time of request, recorded so that a later change
+     * to the fee schedule does not alter what the requester was quoted.
+     */
+    @Column({ name: 'assessed_fee', type: 'decimal', precision: 10, scale: 2, nullable: true })
+    assessedFee: number | null;
+
     @Column({ nullable: true })
     remarks: string;
 

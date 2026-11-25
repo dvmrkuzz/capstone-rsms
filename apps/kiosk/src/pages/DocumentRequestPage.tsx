@@ -17,6 +17,22 @@ interface DocType {
   description: string
   processingDays: number
   fee: number
+  pagesBased: boolean
+  expressFee: number | null
+  documentaryStamps: number
+}
+
+interface FeeLine {
+  label: string
+  detail: string
+  amount: number
+}
+
+interface Assessment {
+  lines: FeeLine[]
+  total: number
+  indicative: boolean
+  note: string | null
 }
 
 interface SuccessData {
@@ -72,6 +88,9 @@ export default function DocumentRequestPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [successData, setSuccessData] = useState<SuccessData | null>(null)
+  const [pages, setPages] = useState(1)
+  const [isExpress, setIsExpress] = useState(false)
+  const [assessment, setAssessment] = useState<Assessment | null>(null)
     const [requestDetails, setRequestDetails] = useState({
     copies: 1,
     purpose: '',
@@ -94,6 +113,25 @@ export default function DocumentRequestPage() {
     setStep('request-details')
   }
 
+  // Ask the backend what the request will cost. The calculation lives on the
+  // server so the amount shown here and the amount recorded against the
+  // request cannot drift apart.
+  useEffect(() => {
+    if (!selectedDoc) { setAssessment(null); return }
+    let cancelled = false
+    const timer = setTimeout(() => {
+      api.post('/visitors/assess-fees', {
+        documentTypeId: selectedDoc.id,
+        copies: requestDetails.copies,
+        pages: selectedDoc.pagesBased ? pages : undefined,
+        isExpress,
+      })
+        .then(res => { if (!cancelled) setAssessment(res.data) })
+        .catch(() => { if (!cancelled) setAssessment(null) })
+    }, 250)
+    return () => { cancelled = true; clearTimeout(timer) }
+  }, [selectedDoc, requestDetails.copies, pages, isExpress])
+
    const handleSubmit = async () => {
     if (!fullName || !selectedDoc || !requestDetails.purpose.trim() || !requestDetails.email.trim()) return
     setSubmitting(true)
@@ -108,6 +146,8 @@ export default function DocumentRequestPage() {
         visitorType,
         documentTypeId: selectedDoc.id,
         copies: requestDetails.copies,
+        pages: selectedDoc.pagesBased ? pages : undefined,
+        isExpress,
         requestPurpose: requestDetails.purpose.trim(),
       })
       setSuccessData(res.data)
@@ -151,6 +191,8 @@ export default function DocumentRequestPage() {
               ['ID Number', idNumber || '—'],
               ['Document', selectedDoc?.name ?? '—'],
               ['Copies', String(requestDetails.copies)],
+              ...(selectedDoc?.pagesBased ? [['Pages', String(pages)]] : []),
+              ['Lane', isExpress && selectedDoc?.expressFee != null ? 'Express' : 'Regular'],
               ['Purpose', requestDetails.purpose],
               ['Tracking Code', successData.trackingNumber ?? '—'],
               ['Date & Time', now.toLocaleString('en-PH', { dateStyle: 'long', timeStyle: 'short' })],
@@ -161,6 +203,46 @@ export default function DocumentRequestPage() {
               </tr>
             ))}
           </table>
+
+          {assessment && assessment.lines.length > 0 && (
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', marginTop: '14px' }}>
+              <tbody>
+                <tr>
+                  <td colSpan={2} style={{ padding: '6px 8px', fontWeight: 700, color: '#7B1113', borderBottom: '1px solid #ccc' }}>
+                    STATEMENT OF FEES
+                  </td>
+                </tr>
+                {assessment.lines.map(line => (
+                  <tr key={line.label} style={{ borderBottom: '1px solid #eee' }}>
+                    <td style={{ padding: '6px 8px', color: '#555' }}>
+                      {line.label}<br />
+                      <span style={{ fontSize: '10px', color: '#888' }}>{line.detail}</span>
+                    </td>
+                    <td style={{ padding: '6px 8px', textAlign: 'right', color: '#222', whiteSpace: 'nowrap' }}>
+                      PHP {line.amount.toFixed(2)}
+                    </td>
+                  </tr>
+                ))}
+                <tr>
+                  <td style={{ padding: '6px 8px', fontWeight: 700, color: '#7B1113' }}>
+                    {assessment.indicative ? 'Amount so far' : 'Total amount payable'}
+                  </td>
+                  <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 700, color: '#7B1113' }}>
+                    PHP {assessment.total.toFixed(2)}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          )}
+
+          {assessment?.note && (
+            <p style={{ fontSize: '10px', color: '#666', marginTop: '6px' }}>{assessment.note}</p>
+          )}
+
+          <p style={{ fontSize: '10px', color: '#888', marginTop: '6px', fontStyle: 'italic' }}>
+            This slip is an assessment of fees. It is not an official receipt. The Official
+            Receipt is issued by the Cashier's Office upon payment.
+          </p>
 
           <div style={{ marginTop: '20px', padding: '12px', background: '#FFF8EC', border: '1px solid #C9A84C', borderRadius: '8px' }}>
             <p style={{ fontWeight: 700, color: '#7B1113', marginBottom: '4px' }}>📋 IMPORTANT</p>
@@ -323,10 +405,14 @@ export default function DocumentRequestPage() {
                 <p className="text-xs text-gray-400">Selected document</p>
                 <p className="font-bold text-gray-800">{selectedDoc?.name}</p>
               </div>
-              {selectedDoc?.fee && selectedDoc.fee > 0 && (
-                <div className="ml-auto">
-                  <p className="text-xs text-gray-400">Fee</p>
-                  <p className="font-bold" style={{ color: '#7B1113' }}>₱{Number(selectedDoc.fee).toFixed(2)}</p>
+              {assessment && assessment.total > 0 && (
+                <div className="ml-auto text-right">
+                  <p className="text-xs text-gray-400">
+                    {assessment.indicative ? 'Fees so far' : 'Total fees'}
+                  </p>
+                  <p className="font-bold" style={{ color: '#7B1113' }}>
+                    ₱{assessment.total.toFixed(2)}{assessment.indicative ? '+' : ''}
+                  </p>
                 </div>
               )}
             </div>
@@ -375,6 +461,103 @@ export default function DocumentRequestPage() {
                   >+</button>
                 </div>
               </div>
+
+              {/* Page count, for documents charged per page */}
+              {selectedDoc?.pagesBased && (
+                <div>
+                  <label className="block text-base font-bold mb-2" style={{ color: '#7B1113' }}>
+                    Number of Pages *
+                  </label>
+                  <div className="flex items-center gap-4">
+                    <button
+                      onClick={() => setPages(p => Math.max(1, p - 1))}
+                      className="w-14 h-14 rounded-xl text-2xl font-black border-2 border-gray-200 hover:border-red-800 transition"
+                      style={{ color: '#7B1113' }}
+                    >−</button>
+                    <span className="text-4xl font-black text-gray-800 w-16 text-center">{pages}</span>
+                    <button
+                      onClick={() => setPages(p => Math.min(100, p + 1))}
+                      className="w-14 h-14 rounded-xl text-2xl font-black border-2 border-gray-200 hover:border-red-800 transition"
+                      style={{ color: '#7B1113' }}
+                    >+</button>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1.5">
+                    This document is charged per page. If you are unsure, leave it at 1 — the
+                    Registrar's Office will confirm the page count and the final amount.
+                  </p>
+                </div>
+              )}
+
+              {/* Express lane */}
+              {selectedDoc?.expressFee != null && (
+                <div>
+                  <label className="block text-base font-bold mb-2" style={{ color: '#7B1113' }}>
+                    Processing Lane
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => setIsExpress(false)}
+                      className="px-3 py-3 rounded-xl text-sm font-medium text-left transition border-2"
+                      style={!isExpress
+                        ? { background: '#7B1113', color: 'white', borderColor: '#7B1113' }
+                        : { background: '#F9F0F0', color: '#7B1113', borderColor: 'transparent' }}
+                    >
+                      <span className="block font-bold">Regular</span>
+                      <span className="block text-xs opacity-80">
+                        ₱{Number(selectedDoc.fee).toFixed(2)}{selectedDoc.pagesBased ? ' per page' : ''}
+                        {selectedDoc.processingDays ? ` · about ${selectedDoc.processingDays} working day${selectedDoc.processingDays === 1 ? '' : 's'}` : ''}
+                      </span>
+                    </button>
+                    <button
+                      onClick={() => setIsExpress(true)}
+                      className="px-3 py-3 rounded-xl text-sm font-medium text-left transition border-2"
+                      style={isExpress
+                        ? { background: '#7B1113', color: 'white', borderColor: '#7B1113' }
+                        : { background: '#F9F0F0', color: '#7B1113', borderColor: 'transparent' }}
+                    >
+                      <span className="block font-bold">Express Lane</span>
+                      <span className="block text-xs opacity-80">
+                        ₱{Number(selectedDoc.expressFee).toFixed(2)}{selectedDoc.pagesBased ? ' per page' : ''} · rush processing
+                      </span>
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1.5">
+                    Express Lane means your document is processed ahead of regular requests for a
+                    higher fee. Choose Regular if you are not in a hurry.
+                  </p>
+                </div>
+              )}
+
+              {/* Assessment of fees. Not a receipt: the system takes no payment. */}
+              {assessment && assessment.lines.length > 0 && (
+                <div className="rounded-xl border-2 p-4" style={{ borderColor: '#C9A84C', background: '#FFFDF7' }}>
+                  <p className="font-bold text-sm mb-2" style={{ color: '#7B1113' }}>
+                    Statement of Fees
+                  </p>
+                  {assessment.lines.map(line => (
+                    <div key={line.label} className="flex justify-between gap-3 text-sm py-1">
+                      <span className="text-gray-600">
+                        {line.label}
+                        <span className="block text-xs text-gray-400">{line.detail}</span>
+                      </span>
+                      <span className="font-bold text-gray-800 whitespace-nowrap">
+                        ₱{line.amount.toFixed(2)}
+                      </span>
+                    </div>
+                  ))}
+                  <div className="flex justify-between border-t mt-2 pt-2 font-black" style={{ color: '#7B1113' }}>
+                    <span>{assessment.indicative ? 'Amount so far' : 'Total amount payable'}</span>
+                    <span>₱{assessment.total.toFixed(2)}</span>
+                  </div>
+                  {assessment.note && (
+                    <p className="text-xs text-gray-500 mt-2">{assessment.note}</p>
+                  )}
+                  <p className="text-xs text-gray-400 mt-2">
+                    Payable at the Cashier's Office. This is an assessment of fees, not an
+                    official receipt.
+                  </p>
+                </div>
+              )}
 
               <div>
                 <label className="block text-base font-bold mb-2" style={{ color: '#7B1113' }}>
