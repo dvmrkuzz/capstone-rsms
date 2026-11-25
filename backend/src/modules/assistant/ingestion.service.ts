@@ -7,6 +7,7 @@ import { Document } from '@langchain/core/documents';
 import { MemoryVectorStore } from '@langchain/classic/vectorstores/memory';
 import { RecursiveCharacterTextSplitter } from '@langchain/classic/text_splitter';
 import { DocumentType } from '../../database/entities/document-type.entity';
+import { DOCUMENTARY_STAMP_FEE } from '../services/fee-assessment';
 import { Announcement } from '../../database/entities/announcement.entity';
 import { FaqService } from '../faq/faq.service';
 import { XenovaEmbeddings } from './embeddings/xenova-embeddings';
@@ -252,10 +253,38 @@ export class IngestionService implements OnModuleInit {
           pageContent:
             `Document: ${dt.name}. ${dt.description ?? ''} ` +
             `Processing time: ${dt.processingDays} working day(s). ` +
-            `Fee: ${Number(dt.fee) > 0 ? `Php ${dt.fee}` : 'Free'}. ` +
+            `Fee: ${this.describeFee(dt)}. ` +
             `${dt.requiresClearance ? 'Requires clearance before release.' : ''}`,
           metadata: { source: 'document_type', documentTypeId: dt.id },
         }),
     );
+  }
+
+  /**
+   * Describes a document's fees the same way the kiosk assesses them, so the
+   * assistant and the kiosk never give different answers. The document_types
+   * table is the single source of truth for both.
+   */
+  private describeFee(dt: DocumentType): string {
+    const base = Number(dt.fee);
+    if (base <= 0) return 'Free';
+
+    const per = dt.pagesBased ? ' per page' : '';
+    const parts: string[] = [`Php ${base.toFixed(2)}${per} (regular)`];
+
+    if (dt.expressFee !== null && dt.expressFee !== undefined) {
+      parts.push(
+        `Php ${Number(dt.expressFee).toFixed(2)}${per} for the express lane (faster processing)`,
+      );
+    }
+    let text = parts.join(', or ');
+    if (dt.documentaryStamps > 0) {
+      text += `, plus Php ${DOCUMENTARY_STAMP_FEE.toFixed(2)} documentary stamp per copy`;
+    }
+    if (dt.pagesBased) {
+      text +=
+        '. The total depends on the number of pages, which the Registrar confirms when the record is retrieved';
+    }
+    return text;
   }
 }
